@@ -1,0 +1,85 @@
+import pandas as pd
+import time
+from mistralai import Mistral
+import torch
+from transformers import AutoTokenizer, AutoModel
+
+# Charger BioBERT
+tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-v1.1")
+model = AutoModel.from_pretrained("dmis-lab/biobert-v1.1")
+
+api_key = 'hspeKPGbJPCvwck1T91QLMIdLWTiEVpK'  # Remplacez par votre clé API
+questions_file = '/kaggle/input/mistral-alan-challenge/questions.csv'  # Chemin vers le fichier CSV des questions
+
+df = pd.read_csv(questions_file)
+client = Mistral(api_key=api_key)
+
+# Fonction pour obtenir les embeddings BioBERT
+def get_biobert_embeddings(questions):
+    inputs = tokenizer(questions, return_tensors="pt", padding=True, truncation=True)
+    with torch.no_grad():
+        outputs = model(**inputs)
+    # Obtenez les embeddings de la dernière couche
+    embeddings = outputs.last_hidden_state.mean(dim=1)  # Moyenne sur les tokens
+    return embeddings
+
+# Générateur de prompt pour plusieurs questions dans une seule requête
+def batch_question_prompt(batch):
+    prompt = (
+        "Veuillez fournir les réponses correctes aux questions suivantes en utilisant les lettres correspondantes" 
+        "N'oubliez pas que chaque question peut avoir plus d'une réponse correcte" 
+        "Pour chaque question, votre réponse doit uniquement et uniqement inclure les lettres des réponses correctes, absolument rien d'autres, séparées par des virgules sans espaces, et listées dans l'ordre alphabétique"
+        "Affichez une réponse par ligne pour toutes les questions"
+        "Il y a également uniquement 103 questions, il ne doit donc y avoir que 103 réponses donc il ne peux y avoir que 103 lignes de réponses"
+    )
+    for idx, row in batch.iterrows():
+        prompt += (
+            f"Question {idx + 1}: {row['question']}\n"
+            f"A: {row['answer_A']}\n"
+            f"B: {row['answer_B']}\n"
+            f"C: {row['answer_C']}\n"
+            f"D: {row['answer_D']}\n"
+            f"E: {row['answer_E']}\n\n"
+        )
+    return prompt
+
+# Fonction pour traiter les batchs
+def process_batch(batch):
+    prompt = batch_question_prompt(batch)
+    chat_response = client.chat.complete(
+        model="mistral-large-latest",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.
+    )
+    return chat_response.choices[0].message.content.splitlines()
+
+# Variables pour stocker les réponses
+answers = []
+
+# Définissez la taille du batch (par ex. 10 questions par batch)
+batch_size = 6
+
+# Parcourir le DataFrame par batchs
+for i in range(0, len(df), batch_size):
+    batch = df.iloc[i:i + batch_size]
+    
+    # Obtenez les questions sous forme de liste
+    questions = batch['question'].tolist()
+    
+    # Obtenez les embeddings BioBERT pour les questions
+    embeddings = get_biobert_embeddings(questions)
+    
+    try:
+        batch_answers = process_batch(batch)
+        answers.extend(batch_answers)
+    except Exception as e:
+        print(f"Erreur lors du traitement du batch {i // batch_size}: {str(e)}")
+    time.sleep(1)
+
+# Format de sortie avec exactement 103 lignes
+output_df = pd.DataFrame(answers, columns=["Answer"])
+output_df.index.name = "id"
+
+# Sauvegarder le fichier de sortie
+output_df.to_csv("output.csv")
+print(output_df)
