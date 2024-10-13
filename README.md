@@ -1,4 +1,4 @@
-# ![Banner Image](Images/Screenshot 2024-10-13 at 10.22.56.png)
+# ![Banner Image](Images/alanxmistral.png)
 
 # MISTRAL X ALAN HACKATHON
 
