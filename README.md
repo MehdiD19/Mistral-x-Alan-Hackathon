@@ -1,4 +1,4 @@
-# ![Banner Image]([https://example.com/your-image-url.jpg](https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2F63254842-c15b-4a7b-8720-08f7d1ca9539%2Fc05fb041-e063-4324-b0df-0d6bcbc2f6f0%2Ffrancesco.capuano_2024-09-13_19_11_43_alanmarmot_participating_i_(1).png?table=block&id=11c3cc80-edfd-8165-b793-da38d86d78d3&spaceId=63254842-c15b-4a7b-8720-08f7d1ca9539&width=2000&userId=90a4014d-78a2-4354-9d85-267ac7aded88&cache=v2))
+# ![Banner Image]([Images/Screenshot 2024-10-13 at 10.22.56.png])
 
 # MISTRAL X ALAN HACKATHON
 
