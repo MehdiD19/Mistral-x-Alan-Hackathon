@@ -1,85 +1,102 @@
 import pandas as pd
-import time
 from mistralai import Mistral
-import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import pipeline
+import time
+from tqdm import tqdm
 
-# Charger BioBERT
-tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-v1.1")
-model = AutoModel.from_pretrained("dmis-lab/biobert-v1.1")
-
+# Initialiser la clé API et charger les données
 api_key = 'hspeKPGbJPCvwck1T91QLMIdLWTiEVpK'  # Remplacez par votre clé API
 questions_file = '/kaggle/input/mistral-alan-challenge/questions.csv'  # Chemin vers le fichier CSV des questions
 
+# Charger le dataset
 df = pd.read_csv(questions_file)
+
+# Initialiser le client Mistral
 client = Mistral(api_key=api_key)
 
-# Fonction pour obtenir les embeddings BioBERT
-def get_biobert_embeddings(questions):
-    inputs = tokenizer(questions, return_tensors="pt", padding=True, truncation=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    # Obtenez les embeddings de la dernière couche
-    embeddings = outputs.last_hidden_state.mean(dim=1)  # Moyenne sur les tokens
-    return embeddings
+# Initialiser le pipeline BioBERT pour la compréhension des questions médicales
+biobert = pipeline("question-answering", model="dmis-lab/biobert-base-cased-v1.1")
 
-# Générateur de prompt pour plusieurs questions dans une seule requête
-def batch_question_prompt(batch):
-    prompt = (
-        "Veuillez fournir les réponses correctes aux questions suivantes en utilisant les lettres correspondantes" 
-        "N'oubliez pas que chaque question peut avoir plus d'une réponse correcte" 
-        "Pour chaque question, votre réponse doit uniquement et uniqement inclure les lettres des réponses correctes, absolument rien d'autres, séparées par des virgules sans espaces, et listées dans l'ordre alphabétique"
-        "Affichez une réponse par ligne pour toutes les questions"
-        "Il y a également uniquement 103 questions, il ne doit donc y avoir que 103 réponses donc il ne peux y avoir que 103 lignes de réponses"
+# Fonction pour créer le prompt pour Mistral
+def question_prompt(body, possible_answer_a, possible_answer_b, possible_answer_c, possible_answer_d, possible_answer_e):
+    return (
+        "Answer the following medical question with the letters of the correct answer(s). "
+        "Each question can have multiple correct answers. Provide the letter(s) of the correct answer(s) without spaces, in alphabetical order. "
+        f"Question: {body}\n"
+        f"A: {possible_answer_a}\n"
+        f"B: {possible_answer_b}\n"
+        f"C: {possible_answer_c}\n"
+        f"D: {possible_answer_d}\n"
+        f"E: {possible_answer_e}\n"
     )
-    for idx, row in batch.iterrows():
-        prompt += (
-            f"Question {idx + 1}: {row['question']}\n"
-            f"A: {row['answer_A']}\n"
-            f"B: {row['answer_B']}\n"
-            f"C: {row['answer_C']}\n"
-            f"D: {row['answer_D']}\n"
-            f"E: {row['answer_E']}\n\n"
-        )
-    return prompt
+
+def process_question(row):
+    # Étape 1 : Agent BioBERT (Compréhension de la question)
+    context = f"A: {row['answer_A']} B: {row['answer_B']} C: {row['answer_C']} D: {row['answer_D']} E: {row['answer_E']}"
+    
+    # Tronquer si nécessaire avant d'appeler BioBERT
+    question = row['question'][:512]  # Limite de 512 tokens typique pour BERT
+    context = context[:512]  # Limite pour le contexte également
+
+    # Appel à BioBERT sans max_length
+    bio_bert_response = biobert({
+        'question': question,
+        'context': context
+    })
+    
+    summary = bio_bert_response['answer']  # Extraire la réponse résumée de BioBERT
+
+    # Étape 2 : Agent Mistral (Prise de décision basée sur la compréhension de BioBERT)
+    prompt = question_prompt(
+        body=summary,  # Utiliser la réponse de BioBERT comme partie du corps
+        possible_answer_a=row['answer_A'],
+        possible_answer_b=row['answer_B'],
+        possible_answer_c=row['answer_C'],
+        possible_answer_d=row['answer_D'],
+        possible_answer_e=row['answer_E']
+    )
+
+    # Mistral décide en fonction de la compréhension fournie par BioBERT
+    chat_response = client.chat.complete(
+        model="mistral-large-latest",
+        messages=[
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.  # Réponse déterministe
+    )
+    return chat_response.choices[0].message.content
 
 # Fonction pour traiter les batchs
 def process_batch(batch):
-    prompt = batch_question_prompt(batch)
-    chat_response = client.chat.complete(
-        model="mistral-large-latest",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.
-    )
-    return chat_response.choices[0].message.content.splitlines()
+    batch_answers = []
+    for _, row in batch.iterrows():  # Itérer sur chaque ligne dans le batch
+        try:
+            answer = process_question(row)
+            batch_answers.append(answer)
+        except Exception as e:
+            print(f"Erreur lors du traitement de la question {row['question']}: {str(e)}")
+    return batch_answers
 
 # Variables pour stocker les réponses
 answers = []
 
-# Définissez la taille du batch (par ex. 10 questions par batch)
-batch_size = 6
+# Définir la taille du batch (par ex. 7 questions par batch)
+batch_size = 10
 
 # Parcourir le DataFrame par batchs
-for i in range(0, len(df), batch_size):
-    batch = df.iloc[i:i + batch_size]
-    
-    # Obtenez les questions sous forme de liste
-    questions = batch['question'].tolist()
-    
-    # Obtenez les embeddings BioBERT pour les questions
-    embeddings = get_biobert_embeddings(questions)
-    
+for i in tqdm(range(0, len(df), batch_size), desc="Traitement des batches"):
+    batch = df.iloc[i:i + batch_size]  # Sélectionner un batch de `batch_size` questions
     try:
         batch_answers = process_batch(batch)
         answers.extend(batch_answers)
     except Exception as e:
         print(f"Erreur lors du traitement du batch {i // batch_size}: {str(e)}")
-    time.sleep(1)
+    time.sleep(1)  # Attendre 1 seconde entre les batchs pour éviter les limites de requêtes
 
-# Format de sortie avec exactement 103 lignes
+# Créer le DataFrame de sortie
 output_df = pd.DataFrame(answers, columns=["Answer"])
 output_df.index.name = "id"
 
 # Sauvegarder le fichier de sortie
-output_df.to_csv("output.csv")
+output_df.to_csv("output.csv", index=True)
 print(output_df)
