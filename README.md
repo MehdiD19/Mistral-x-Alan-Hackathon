@@ -17,5 +17,6 @@ The expected format for our submission is a .csv file containing our answers, wi
 
 ### Chain of Thoughts
 <img src="Images/chainofthoughts" alt="Chain of Thoughts schema" width="500"/>
+
 ## 3. Challenges
 We tried many different approaches as this was the first time we worked on such a problem and lost a lot of precious time. We will learn from this experience for the next hackathons to come and define a solution and focus on it.
