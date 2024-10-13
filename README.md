@@ -13,7 +13,7 @@ The expected format for our submission is a .csv file containing our answers, wi
 
 ## 2. Solutions
 ### Mixture of Agents
-<img src="Images/MixtureOfAgents" alt="Mixture of Agents schema" width="200"/>
+<img src="Images/MixtureOfAgents" alt="Mixture of Agents schema" width="500"/>
 
 ### Chain of Thoughts
 
