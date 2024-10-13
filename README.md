@@ -12,11 +12,10 @@ Note: We don't have a training dataset with the correct answers—where would th
 The expected format for our submission is a .csv file containing our answers, with the letters for multiple-correct answers being comma-concatenated.
 
 ## 2. Solutions
-Outline the potential solutions you have identified or implemented to address the problem. Focus on the core ideas and the technologies or methods used.
+### Mixture of Agents
+<img src="https://example.com/your-image-url.jpg" alt="Mixture of Agents schema" width="200"/>
 
-- **Approach 1:** Explanation of the first solution, including the tools and steps.
-- **Approach 2:** Explanation of the second solution, if applicable.
-- **Technology Stack:** List the technologies, frameworks, or algorithms used to implement the solutions.
+### Chain of Thoughts
 
 ## 3. Challenges
 Discuss the challenges encountered during the project. These could include technical limitations, resource constraints, or unforeseen difficulties.
