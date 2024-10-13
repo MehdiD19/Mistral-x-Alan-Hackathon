@@ -13,13 +13,9 @@ The expected format for our submission is a .csv file containing our answers, wi
 
 ## 2. Solutions
 ### Mixture of Agents
-<img src="https://example.com/your-image-url.jpg" alt="Mixture of Agents schema" width="200"/>
+<img src="Images/MixtureOfAgents" alt="Mixture of Agents schema" width="200"/>
 
 ### Chain of Thoughts
 
 ## 3. Challenges
-Discuss the challenges encountered during the project. These could include technical limitations, resource constraints, or unforeseen difficulties.
-
-- **Technical Limitations:** Issues related to software, hardware, or design limitations.
-- **Resource Constraints:** Time, budget, or team challenges.
-- **Unforeseen Issues:** Any unexpected challenges that arose and how you managed
+We tried many different approaches as this was the first time we worked on such a problem and lost a lot of precious time. We will learn from this experience for the next hackathons to come and define a solution and focus on it.
